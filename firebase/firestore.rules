@@ -1,0 +1,115 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // =========================================================================
+    // HELPER SECURITY FUNCTIONS
+    // =========================================================================
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Admin role is granted only via backend Firebase Admin SDK custom claims
+    // or an existing verified admin user profile
+    function isAdmin() {
+      return isAuthenticated() &&
+        (request.auth.token.role == 'admin' ||
+         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'));
+    }
+
+    // Validate User Profile Creation schema & types
+    function isValidUserProfileCreate(userId) {
+      let data = request.resource.data;
+      return data.uid == userId &&
+        data.uid is string &&
+        data.email is string &&
+        data.fullName is string &&
+        data.fullName.size() >= 1 &&
+        data.fullName.size() <= 100 &&
+        data.role == 'user' && // Never allow client to register as admin
+        data.plan in ['Starter', 'Professional', 'Institution'] &&
+        (data.createdAt is string || data.createdAt is timestamp) &&
+        data.totalAnalyses is number &&
+        data.emailVerified is bool;
+    }
+
+    // Validate Analysis Document Creation schema & types
+    function isValidAnalysisCreate() {
+      let data = request.resource.data;
+      return data.userId == request.auth.uid &&
+        data.documentName is string &&
+        data.documentName.size() >= 1 &&
+        data.overallAiLikePercentage is number &&
+        data.overallAiLikePercentage >= 0 &&
+        data.overallAiLikePercentage <= 100 &&
+        data.overallHumanLikePercentage is number &&
+        data.overallHumanLikePercentage >= 0 &&
+        data.overallHumanLikePercentage <= 100 &&
+        data.uncertainPercentage is number &&
+        data.totalWords is number &&
+        data.totalSentences is number &&
+        data.sentenceResults is list &&
+        (data.createdAt is string || data.createdAt is timestamp);
+    }
+
+    // =========================================================================
+    // USER PROFILE COLLECTION (/users/{userId})
+    // =========================================================================
+    match /users/{userId} {
+      // Users can only view their own profile; admins can inspect all
+      allow read: if isOwner(userId) || isAdmin();
+
+      // Creation is strictly validated upon initial signup
+      allow create: if isOwner(userId) && isValidUserProfileCreate(userId);
+
+      // Updates are explicitly limited to safe fields (fullName, photoURL)
+      // Modifying role, plan, uid, createdAt, or totalAnalyses is FORBIDDEN for clients
+      allow update: if (isOwner(userId) &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['fullName', 'photoURL']) &&
+        request.resource.data.fullName is string &&
+        request.resource.data.fullName.size() >= 1 &&
+        request.resource.data.fullName.size() <= 100 &&
+        (request.resource.data.photoURL is string || !('photoURL' in request.resource.data))) ||
+        isAdmin();
+
+      // Deletion is strictly reserved for Admin / server workflow (ordinary users cannot directly delete from client)
+      allow delete: if isAdmin();
+    }
+
+    // =========================================================================
+    // ANALYSIS HISTORY COLLECTION (/analyses/{analysisId})
+    // =========================================================================
+    match /analyses/{analysisId} {
+      // Users can only query and read their own document analysis history
+      allow read: if (isAuthenticated() && resource.data.userId == request.auth.uid) || isAdmin();
+
+      // Analysis records can only be created by the authenticated owner with validated fields
+      allow create: if isAuthenticated() && isValidAnalysisCreate();
+
+      // Users can delete only their own analysis history; admins can delete any
+      allow delete: if (isAuthenticated() && resource.data.userId == request.auth.uid) || isAdmin();
+
+      // Analyses are immutable once written (updates forbidden for regular users)
+      allow update: if isAdmin();
+    }
+
+    // =========================================================================
+    // SYSTEM STATS & AUDIT LOGS (ADMIN ONLY)
+    // =========================================================================
+    match /systemStats/{statId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /auditLogs/{logId} {
+      allow read: if isAdmin();
+      // Client writes are completely denied. Only trusted backend Firebase Admin SDK can create audit logs.
+      allow write: if false;
+    }
+  }
+}

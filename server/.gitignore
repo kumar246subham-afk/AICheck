@@ -1,0 +1,12 @@
+node_modules
+.env
+.env.*
+*.env
+!*.env.example
+serviceAccountKey.json
+*serviceAccount*.json
+*firebase-adminsdk*.json
+config/serviceAccountKey.json
+**/serviceAccountKey.json
+uploads/*
+!uploads/.gitkeep

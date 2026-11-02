@@ -1,0 +1,123 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: dark;
+  }
+  
+  body {
+    background-color: #050816;
+    color: #F8FAFC;
+    font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+    overflow-x: hidden;
+  }
+
+  /* Custom enterprise dark scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: #0B1224;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #162340;
+    border-radius: 4px;
+    border: 2px solid #0B1224;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #00D9FF;
+  }
+}
+
+@layer utilities {
+  /* Enterprise Glassmorphism Surface */
+  .glass-surface {
+    background: rgba(17, 27, 48, 0.65);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .glass-surface-hover {
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .glass-surface-hover:hover {
+    background: rgba(22, 35, 64, 0.85);
+    border-color: rgba(0, 217, 255, 0.3);
+    box-shadow: 0 12px 36px -10px rgba(0, 217, 255, 0.18);
+    transform: translateY(-2px);
+  }
+
+  .glass-card {
+    background: rgba(17, 27, 48, 0.7);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(0, 217, 255, 0.12);
+  }
+
+  .glass-card-hover {
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .glass-card-hover:hover {
+    background: rgba(22, 35, 64, 0.85);
+    border-color: rgba(0, 217, 255, 0.35);
+    box-shadow: 0 10px 30px -10px rgba(0, 217, 255, 0.2);
+    transform: translateY(-2px);
+  }
+
+  .glass-input {
+    background: rgba(11, 18, 36, 0.75);
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    backdrop-filter: blur(10px);
+    transition: all 0.2s ease;
+  }
+
+  .glass-input:focus {
+    border-color: #00D9FF;
+    box-shadow: 0 0 16px -2px rgba(0, 217, 255, 0.35);
+    outline: none;
+  }
+
+  /* Refined Text Gradients */
+  .text-gradient-cyan {
+    background: linear-gradient(135deg, #00D9FF 0%, #3B82F6 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .text-gradient-violet {
+    background: linear-gradient(135deg, #A78BFA 0%, #8B5CF6 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .text-gradient-hero {
+    background: linear-gradient(135deg, #FFFFFF 0%, #E2E8F0 40%, #00D9FF 80%, #8B5CF6 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .text-gradient-highlight {
+    background: linear-gradient(135deg, #00D9FF 0%, #8B5CF6 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  /* Background Ambient Atmospheres */
+  .bg-ambient-radial {
+    background: radial-gradient(circle at 50% 15%, rgba(0, 217, 255, 0.09) 0%, rgba(139, 92, 246, 0.06) 40%, transparent 75%);
+  }
+
+  .bg-grid-subtle {
+    background-image: radial-gradient(rgba(0, 217, 255, 0.1) 1px, transparent 1px);
+    background-size: 36px 36px;
+  }
+}
