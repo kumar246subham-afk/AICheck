@@ -15,27 +15,57 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 5000;
-const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || 'http://localhost:5173';
+const HOST = process.env.HOST || '0.0.0.0';
+
+// Configured allowed client origins (strips trailing slashes)
+const allowedOrigins = (process.env.CLIENT_ORIGIN || 'https://ai-check-coral.vercel.app,http://localhost:5173,http://localhost:3000')
+  .split(',')
+  .map(o => o.trim().replace(/\/$/, ''))
+  .filter(Boolean);
 
 // Security Headers
 app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" }
 }));
 
-// CORS Configuration
-app.use(cors({
+// Production CORS Configuration
+const corsOptions = {
   origin: (origin, callback) => {
-    // Allow requests with no origin (like mobile apps, curl, or server-to-server)
+    // Allow requests with no origin (like mobile apps, curl, or server-to-server health checks)
     if (!origin) return callback(null, true);
-    if (origin === CLIENT_ORIGIN || origin.startsWith('http://localhost:')) {
+
+    const normalizedOrigin = origin.replace(/\/$/, '');
+
+    // Allow localhost in non-production
+    if (process.env.NODE_ENV !== 'production' && /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(normalizedOrigin)) {
       return callback(null, true);
     }
-    return callback(null, true); // Permissive in dev, can restrict in production
+
+    // Check configured allowed origins
+    if (allowedOrigins.includes(normalizedOrigin)) {
+      return callback(null, true);
+    }
+
+    // Allow Vercel preview deployments for this project
+    if (/^https:\/\/ai-check-[a-z0-9-]+\.vercel\.app$/.test(normalizedOrigin)) {
+      return callback(null, true);
+    }
+
+    // Reject untrusted origins in production
+    if (process.env.NODE_ENV === 'production') {
+      return callback(new Error(`CORS policy violation: Origin ${origin} is not allowed.`));
+    }
+
+    return callback(null, true);
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
-}));
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  optionsSuccessStatus: 204
+};
+
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
 
 // Body Parsing
 app.use(express.json({ limit: '15mb' }));
@@ -103,11 +133,17 @@ app.use((req, res) => {
   });
 });
 
-// Start Server
-if (process.env.NODE_ENV !== 'test') {
-  app.listen(PORT, () => {
-    console.log(`🚀 AICheck API Server listening on port ${PORT}`);
-    console.log(`📡 Health endpoint: http://localhost:${PORT}/api/v1/health`);
+// Start Server (only when executed directly, not when imported in test suites)
+const isDirectExecution = process.argv[1] && (
+  process.argv[1].endsWith('server.js') || 
+  process.argv[1].endsWith('server')
+);
+const isTestEnv = process.env.NODE_ENV === 'test' || Boolean(process.env.NODE_TEST_CONTEXT);
+
+if (!isTestEnv && isDirectExecution) {
+  app.listen(PORT, HOST, () => {
+    console.log(`🚀 AICheck API Server listening on ${HOST}:${PORT}`);
+    console.log(`📡 Health endpoint: http://${HOST}:${PORT}/api/v1/health`);
   });
 }
 

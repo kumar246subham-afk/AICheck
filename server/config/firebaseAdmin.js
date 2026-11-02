@@ -40,17 +40,22 @@ function initFirebaseAdmin() {
       credentialSource = 'FIREBASE_SERVICE_ACCOUNT_KEY env variable';
     }
 
-    // 2. Local Service Account JSON file
+    // 2. Cloud Secret File (Render /etc/secrets/serviceAccountKey.json) or Local Service Account JSON file
     if (!credential) {
-      const explicitPath = process.env.FIREBASE_SERVICE_ACCOUNT_PATH;
-      const defaultPath = path.join(__dirname, 'serviceAccountKey.json');
-      const resolvedPath = explicitPath && fs.existsSync(explicitPath) ? explicitPath : defaultPath;
+      const candidatePaths = [
+        process.env.FIREBASE_SERVICE_ACCOUNT_PATH,
+        '/etc/secrets/serviceAccountKey.json',
+        path.join(__dirname, 'serviceAccountKey.json'),
+      ].filter(Boolean);
 
-      if (fs.existsSync(resolvedPath)) {
-        const fileContent = JSON.parse(fs.readFileSync(resolvedPath, 'utf8'));
-        credential = admin.credential.cert(fileContent);
-        activeProjectId = fileContent.project_id;
-        credentialSource = `file (${path.basename(resolvedPath)})`;
+      for (const candidate of candidatePaths) {
+        if (fs.existsSync(candidate)) {
+          const fileContent = JSON.parse(fs.readFileSync(candidate, 'utf8'));
+          credential = admin.credential.cert(fileContent);
+          activeProjectId = fileContent.project_id;
+          credentialSource = `file (${candidate.includes('secrets') ? 'Render Secret File' : path.basename(candidate)})`;
+          break;
+        }
       }
     }
 

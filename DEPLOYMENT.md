@@ -9,7 +9,7 @@ This guide provides end-to-end instructions for deploying AICheck to production 
 ```
 +------------------------------------+
 |        Vercel (Client App)         |
-|   https://aicheck-app.vercel.app   |
+|   https://ai-check-coral.vercel.app|
 |   - React 18 + Vite + Tailwind CSS |
 |   - Three.js 3D WebGL Canvas       |
 |   - Firebase Client SDK (Auth/DB)  |
@@ -77,7 +77,7 @@ In the Render dashboard under **Environment**:
 | :--- | :--- | :--- |
 | `NODE_ENV` | `production` | Enables production optimizations & error handling |
 | `PORT` | `10000` | Port automatically provided by Render |
-| `CLIENT_ORIGIN` | `https://your-app.vercel.app` | Production frontend URL for CORS whitelist |
+| `CLIENT_ORIGIN` | `https://ai-check-coral.vercel.app` | Production frontend URL for CORS whitelist |
 | `FIREBASE_PROJECT_ID` | `aicheck-784df` | Firebase Project ID |
 | `FIREBASE_CLIENT_EMAIL` | `firebase-adminsdk-fbsvc@aicheck-784df.iam.gserviceaccount.com` | Service account email |
 | `FIREBASE_PRIVATE_KEY` | `"-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"` | Service account private key |

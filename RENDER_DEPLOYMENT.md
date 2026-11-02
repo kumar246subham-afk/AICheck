@@ -1,106 +1,163 @@
-# AICheck — Render Production Deployment Guide
+# AICheck — Render Production Backend Deployment Guide
 
-This guide describes how to deploy the AICheck Node.js backend to **[Render](https://render.com/)** with Firebase Admin SDK authentication.
-
----
-
-## 1. Create a New Web Service on Render
-
-1. Log in to the [Render Dashboard](https://dashboard.render.com/).
-2. Click **New +** → **Web Service**.
-3. Connect your Git repository containing the AICheck codebase.
-4. Configure the basic settings:
-   - **Name**: `aicheck-api` (or your choice)
-   - **Root Directory**: `server`
-   - **Environment**: `Node`
-   - **Region**: Select closest to your users (e.g., Oregon, Frankfurt, Singapore)
-   - **Branch**: `main`
-   - **Build Command**: `npm install`
-   - **Start Command**: `npm start`
-   - **Instance Type**: Free or Starter
+This guide describes how to deploy the AICheck Node.js backend to **[Render](https://render.com/)** and connect it to the production frontend at **`https://ai-check-coral.vercel.app`**.
 
 ---
 
-## 2. Configure Firebase Admin SDK on Render
+## 1. Architecture Overview
 
-Because `serviceAccountKey.json` is strictly ignored by Git (never commit private credentials), configure the credentials in Render using **one of the two recommended production methods**:
+```
++------------------------------------+
+|        Vercel (Client App)         |
+|   https://ai-check-coral.vercel.app|
+|   - React 18 + Vite + Tailwind CSS |
+|   - Three.js 3D WebGL Canvas       |
+|   - Firebase Client SDK (Auth/DB)  |
++-----------------+------------------+
+                  |
+         REST API | Bearer ID Token
+                  v
++------------------------------------+
+|        Render (Backend API)        |
+|  https://aicheck-backend.onrender.com|
+|   - Node.js Express (ESM)          |
+|   - Firebase Admin SDK (Tokens/DB) |
+|   - In-Memory Document Parser      |
+|   - Local NLP Statistical Engine   |
+|   - PDFKit Report Generator        |
++-----------------+------------------+
+                  |
+     Verification | Admin Sync
+                  v
++------------------------------------+
+|    Firebase Cloud Platform         |
+|    Project ID: aicheck-784df       |
+|   - Firebase Authentication        |
+|   - Cloud Firestore (115 Rules)    |
+|   - Service Account IAM            |
++------------------------------------+
+```
 
-### Option A: Secret Files (Recommended & Cleanest)
-Render supports Secret Files that are mounted directly into your app's directory structure during runtime:
-1. In the Render Dashboard, go to your Web Service → **Environment** tab.
-2. Scroll to the **Secret Files** section and click **Add Secret File**.
-3. Set **Filename**: `config/serviceAccountKey.json`
-4. In the **Contents** box, paste the exact contents of your `serviceAccountKey.json`.
+---
+
+## 2. Create the Render Web Service
+
+1. Sign in to the [Render Dashboard](https://dashboard.render.com/).
+2. Click the **"New +"** button in the top right and select **"Web Service"**.
+3. Under **"Connect a repository"**, select **`kumar246subham-afk/AICheck`**.
+   *(If not visible, click "Configure account" to grant access to the `AICheck` repository)*.
+4. Configure the Web Service:
+
+| Setting | Value |
+| :--- | :--- |
+| **Name** | `aicheck-backend` *(or your preferred service name)* |
+| **Region** | Select closest to your users (e.g., `Oregon (US West)` or `Frankfurt (EU Central)`) |
+| **Branch** | `main` |
+| **Root Directory** | `server` *(CRITICAL: do not leave empty)* |
+| **Runtime** | `Node` |
+| **Build Command** | `npm install` |
+| **Start Command** | `npm start` |
+| **Instance Type** | `Free` (or `Starter`) |
+
+5. Scroll down to **Advanced** -> **Health Check Path** and set:
+   - **Health Check Path**: `/api/v1/health`
+
+---
+
+## 3. Configure Firebase Admin Credentials on Render
+
+The backend needs Firebase Admin credentials to verify authentication tokens and administer Firestore. Use **one of the three options** below:
+
+### Option A: Secret Files (Recommended)
+Render supports mounting secret files directly into the container filesystem:
+1. In the Render Web Service dashboard, go to the **"Environment"** tab.
+2. Scroll to the **"Secret Files"** section and click **"Add Secret File"**.
+3. Set **Filename**: `serviceAccountKey.json`  
+   *(Render will mount this at `/etc/secrets/serviceAccountKey.json`, which the backend automatically detects)*.
+4. In the **File Contents** editor, paste the complete JSON from your local `server/config/serviceAccountKey.json`.
 5. Click **Save Changes**.
-6. The AICheck backend will automatically detect and load `server/config/serviceAccountKey.json` upon startup.
 
 ---
 
-### Option B: Base64 or JSON Environment Variable
-If you prefer configuring via standard Environment Variables:
-1. Base64-encode your service account file:
-   - On Windows (PowerShell):
-     ```powershell
-     [Convert]::ToBase64String([System.IO.File]::ReadAllBytes("server\config\serviceAccountKey.json")) | Set-Clipboard
-     ```
-   - On macOS/Linux:
-     ```bash
-     base64 -w 0 server/config/serviceAccountKey.json | pbcopy
-     ```
-2. In Render → **Environment** → **Environment Variables**, add:
+### Option B: Base64 / Raw JSON Environment Variable
+If you prefer configuring via an environment variable:
+1. On your local machine (PowerShell):
+   ```powershell
+   [Convert]::ToBase64String([System.IO.File]::ReadAllBytes("server\config\serviceAccountKey.json")) | Set-Clipboard
+   ```
+2. In Render -> **Environment** -> **Environment Variables**, add:
    - **Key**: `FIREBASE_SERVICE_ACCOUNT_KEY`
-   - **Value**: *(paste the Base64 string or minified JSON)*
-3. AICheck automatically decodes Base64 and initializes Firebase Admin SDK.
+   - **Value**: *(paste the Base64 string or the raw JSON)*
 
 ---
 
 ### Option C: Individual Environment Variables
-Alternatively, configure individual keys:
+Alternatively, enter the service account fields individually:
 - `FIREBASE_PROJECT_ID`: `aicheck-784df`
 - `FIREBASE_CLIENT_EMAIL`: `firebase-adminsdk-fbsvc@aicheck-784df.iam.gserviceaccount.com`
-- `FIREBASE_PRIVATE_KEY`: `"-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQC...\n-----END PRIVATE KEY-----\n"`
-
-*(Note: Preserve literal `\n` characters in the private key string).*
+- `FIREBASE_PRIVATE_KEY`: `"-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"`
 
 ---
 
-## 3. Required Environment Variables Summary
+## 4. Complete Environment Variables on Render
 
-Add the following environment variables in Render:
+In the Render Web Service **Environment** tab, set the following environment variables:
 
-| Variable | Value / Description |
-| :--- | :--- |
-| `NODE_ENV` | `production` |
-| `CLIENT_ORIGIN` | `https://aicheck-784df.web.app` *(or your custom domain)* |
-| `FIREBASE_PROJECT_ID` | `aicheck-784df` |
-| `FIREBASE_SERVICE_ACCOUNT_KEY` | *(Base64 string from Option B, or use Secret File Option A)* |
-| `HUGGINGFACE_API_KEY` | *(Optional: Your HF API key for remote model inference)* |
-| `MAX_FILE_SIZE_MB` | `10` |
-| `RATE_LIMIT_WINDOW_MS` | `900000` *(15 minutes)* |
-| `RATE_LIMIT_MAX` | `100` |
+| Variable Name | Production Value | Purpose |
+| :--- | :--- | :--- |
+| `NODE_ENV` | `production` | Enables production optimizations & security |
+| `CLIENT_ORIGIN` | `https://ai-check-coral.vercel.app` | Production frontend CORS whitelist |
+| `MAX_FILE_SIZE_MB` | `10` | Maximum file upload size limit |
+| `RATE_LIMIT_WINDOW_MS` | `900000` | 15-minute rate limit window (ms) |
+| `RATE_LIMIT_MAX` | `100` | Maximum requests per IP per window |
+| `HUGGINGFACE_API_KEY` | *(Optional)* | Optional Hugging Face inference key |
+| `HUGGINGFACE_MODEL_URL` | `https://router.huggingface.co/hf-inference/models/roberta-base-openai-detector` | Model URL endpoint |
 
----
-
-## 4. Health Check Verification
-
-Render provides built-in health check monitoring:
-1. In Render Web Service settings, scroll to **Health Check Path**.
-2. Enter: `/api/v1/health`
-3. Render will monitor this endpoint and automatically ensure zero-downtime deploys.
+*(Note: Render automatically injects `PORT`. Do not add a fixed `PORT` variable so Render can dynamically bind it).*
 
 ---
 
-## 5. Connecting Frontend to Render Backend
+## 5. Verify the Render Deployment
 
-Once Render finishes deploying, copy your service URL (e.g. `https://aicheck-api.onrender.com`).
+Once deployed, Render will display your public backend URL (e.g., `https://aicheck-backend.onrender.com`).
 
-In `client/.env`:
-```env
-VITE_API_URL=https://aicheck-api.onrender.com/api/v1
-```
-Rebuild and deploy your frontend to Firebase Hosting:
+### 1. Test Health Endpoint
 ```bash
-cd client
-npm run build
-firebase deploy --only hosting
+curl https://aicheck-backend.onrender.com/api/v1/health
 ```
+Expected 200 response:
+```json
+{
+  "status": "success",
+  "message": "AICheck API Engine operational",
+  "timestamp": "...",
+  "uptimeSeconds": 12,
+  "environment": "production",
+  "version": "1.0.0"
+}
+```
+
+### 2. Verify CORS Preflight
+```bash
+curl -I -X OPTIONS https://aicheck-backend.onrender.com/api/v1/health \
+  -H "Origin: https://ai-check-coral.vercel.app" \
+  -H "Access-Control-Request-Method: GET"
+```
+Expected response headers:
+- `access-control-allow-origin: https://ai-check-coral.vercel.app`
+- `access-control-allow-credentials: true`
+
+---
+
+## 6. Connect Live Vercel Frontend to Render Backend
+
+Now update your frontend on Vercel to point to your new live backend:
+
+1. Open your Vercel project at [vercel.com](https://vercel.com/) -> Select **`aicheck`** (or your frontend project).
+2. Go to **Settings** -> **Environment Variables**.
+3. Find or add **`VITE_API_URL`**:
+   - **Value**: `https://aicheck-backend.onrender.com` *(use your actual Render backend URL)*
+4. Go to the **Deployments** tab, click **Redeploy** on your latest deployment.
+5. Once redeployed, visit **`https://ai-check-coral.vercel.app`**!
+   - Upload a test document or scan text in the Document Analyzer.
+   - Network requests will now route to your production backend on Render.
