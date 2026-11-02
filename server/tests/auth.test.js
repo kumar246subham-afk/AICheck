@@ -1,9 +1,17 @@
 import test from 'node:test';
 import assert from 'node:assert';
-import { admin, isFirebaseAdminInitialized, activeProjectId, EXPECTED_PROJECT_ID } from '../config/firebaseAdmin.js';
+import {
+  admin,
+  isFirebaseAdminInitialized,
+  activeProjectId,
+  activeClientEmail,
+  EXPECTED_PROJECT_ID,
+  validateServiceAccount,
+  CANDIDATE_SECRET_PATHS,
+} from '../config/firebaseAdmin.js';
 import { verifyAuthToken, optionalAuthToken, requireAdminRole } from '../middleware/authMiddleware.js';
 
-test('Firebase Admin SDK Initialization', async (t) => {
+test('Firebase Admin SDK Initialization & Secret Files Configuration', async (t) => {
   await t.test('Admin SDK is initialized with credentials', () => {
     assert.strictEqual(isFirebaseAdminInitialized, true, 'Firebase Admin SDK should be initialized');
     assert.ok(admin.apps.length > 0, 'At least one Firebase app should be active');
@@ -11,6 +19,44 @@ test('Firebase Admin SDK Initialization', async (t) => {
 
   await t.test('Project ID matches expected "aicheck-784df"', () => {
     assert.strictEqual(activeProjectId, EXPECTED_PROJECT_ID, `Project ID must be ${EXPECTED_PROJECT_ID}`);
+  });
+
+  await t.test('Client email is verified and associated with project', () => {
+    assert.ok(activeClientEmail && activeClientEmail.includes('aicheck-784df'), 'Client email should match project');
+  });
+
+  await t.test('Candidate paths include Render Secret Files prioritizing /etc/secrets/serviceAccountKey.json', () => {
+    assert.ok(CANDIDATE_SECRET_PATHS.includes('/etc/secrets/serviceAccountKey.json'), 'Must check /etc/secrets/serviceAccountKey.json');
+    assert.ok(CANDIDATE_SECRET_PATHS.includes('/etc/secrets/aicheck-784df-firebase-adminsdk-fbsvc-e5a47a4007.json'), 'Must check second Render Secret File');
+
+    // Index of serviceAccountKey.json should come before the secondary filename
+    const idxPrimary = CANDIDATE_SECRET_PATHS.indexOf('/etc/secrets/serviceAccountKey.json');
+    const idxSecondary = CANDIDATE_SECRET_PATHS.indexOf('/etc/secrets/aicheck-784df-firebase-adminsdk-fbsvc-e5a47a4007.json');
+    assert.ok(idxPrimary < idxSecondary, 'Preferred /etc/secrets/serviceAccountKey.json must have higher priority');
+  });
+
+  await t.test('validateServiceAccount validates schema and rejects mismatched project_id', () => {
+    const validDummy = {
+      project_id: 'aicheck-784df',
+      client_email: 'test@aicheck-784df.iam.gserviceaccount.com',
+      private_key: '-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQC...\n-----END PRIVATE KEY-----\n',
+    };
+    assert.strictEqual(validateServiceAccount(validDummy, 'test-dummy'), true);
+
+    // Reject incorrect project ID
+    assert.throws(() => {
+      validateServiceAccount({ ...validDummy, project_id: 'wrong-project' }, 'test');
+    }, /Security mismatch/);
+
+    // Reject missing client_email
+    assert.throws(() => {
+      validateServiceAccount({ ...validDummy, client_email: '' }, 'test');
+    }, /missing or malformed "client_email"/);
+
+    // Reject invalid private_key
+    assert.throws(() => {
+      validateServiceAccount({ ...validDummy, private_key: 'not-a-key' }, 'test');
+    }, /missing or malformed "private_key"/);
   });
 });
 

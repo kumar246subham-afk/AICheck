@@ -8,8 +8,15 @@ export async function verifyAuthToken(req, res, next) {
   const authHeader = req.headers.authorization;
 
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    // If Admin SDK is not initialized (e.g. initial dev bootstrap), pass with dev mock
+    // Fail securely if Admin SDK is uninitialized
     if (!isFirebaseAdminInitialized) {
+      if (process.env.NODE_ENV === 'production') {
+        return res.status(500).json({
+          status: 'error',
+          code: 'AUTH_UNINITIALIZED',
+          message: 'Server authentication subsystem is uninitialized.',
+        });
+      }
       req.user = { uid: 'dev_user_local', role: 'user', email: 'dev@aicheck.ai' };
       return next();
     }
@@ -30,6 +37,13 @@ export async function verifyAuthToken(req, res, next) {
   }
 
   if (!isFirebaseAdminInitialized) {
+    if (process.env.NODE_ENV === 'production') {
+      return res.status(500).json({
+        status: 'error',
+        code: 'AUTH_UNINITIALIZED',
+        message: 'Server authentication subsystem is uninitialized.',
+      });
+    }
     req.user = { uid: 'dev_user_token', role: 'user' };
     return next();
   }
