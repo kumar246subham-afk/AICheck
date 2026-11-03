@@ -25,8 +25,7 @@ export function ForgotPasswordPage() {
     setIsLoading(true);
     try {
       if (!isFirebaseConfigured) {
-        toast.success(`[Test Mode] Password reset link simulated for ${email}`);
-        setIsSuccess(true);
+        setErrorMessage('Firebase is not yet configured with valid credentials. Please configure the VITE_FIREBASE_* environment variables in your deployment settings.');
         setIsLoading(false);
         return;
       }

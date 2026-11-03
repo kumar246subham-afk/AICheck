@@ -48,7 +48,7 @@ export function LoginPage() {
     setIsLoading(true);
     try {
       if (!isFirebaseConfigured) {
-        setErrorMessage('Firebase is not yet configured with valid credentials in client/.env.');
+        setErrorMessage('Firebase is not yet configured with valid credentials. Please configure the VITE_FIREBASE_* environment variables in your deployment settings.');
         setIsLoading(false);
         return;
       }
@@ -123,7 +123,7 @@ export function LoginPage() {
     setIsLoading(true);
     try {
       if (!isFirebaseConfigured) {
-        setErrorMessage('Firebase is not yet configured with valid credentials in client/.env.');
+        setErrorMessage('Firebase is not yet configured with valid credentials. Please configure the VITE_FIREBASE_* environment variables in your deployment settings.');
         setIsLoading(false);
         return;
       }
