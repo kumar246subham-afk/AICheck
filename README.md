@@ -1,10 +1,14 @@
 # AICheck — 3D AI Content Detector & Human Writing Analyzer
 
-[![Tests](https://img.shields.io/badge/tests-20%20passed-brightgreen.svg)](#test-suite)
+[![Tests](https://img.shields.io/badge/tests-29%20passed-brightgreen.svg)](#test-suite)
 [![Status](https://img.shields.io/badge/status-production--ready-success.svg)](#project-status)
 [![Frontend](https://img.shields.io/badge/frontend-React%2018%20%2B%20Vite%20%2B%20Three.js-blue.svg)](#technology-stack)
 [![Backend](https://img.shields.io/badge/backend-Node.js%20%2B%20Express%20%2B%20Firebase%20Admin-orange.svg)](#technology-stack)
 [![Security](https://img.shields.io/badge/security-115%20Firestore%20Rules%20Hardened-blueviolet.svg)](#security-architecture)
+
+> **Live Deployments:**  
+> - **Frontend (Vercel):** [https://ai-check-coral.vercel.app](https://ai-check-coral.vercel.app)  
+> - **Backend (Render):** [https://aicheck-backend.onrender.com](https://aicheck-backend.onrender.com)  
 
 AICheck is a production-grade SaaS application designed to analyze written text, detect AI-generated phrasing patterns, evaluate human linguistic cadence, and provide verifiable sentence-level diagnostics through interactive 3D WebGL visualizations and downloadable executive PDF reports.
 
